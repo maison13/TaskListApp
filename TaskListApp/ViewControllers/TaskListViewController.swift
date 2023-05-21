@@ -6,10 +6,11 @@
 //
 
 import UIKit
-import CoreData
 
 final class TaskListViewController: UITableViewController {
-    private let viewContext = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+    private let viewContext = StorageManager.shared.persistentContainer.viewContext
+    private let storageManager = StorageManager.shared
+   
     
     private let cellID = "cell"
     private var taskList: [Task] = []
@@ -41,14 +42,42 @@ final class TaskListViewController: UITableViewController {
     }
     
     private func fetchData() {
-        let fetchRequest = Task.fetchRequest()
-        
         do {
-            taskList = try viewContext.fetch(fetchRequest)
+            taskList = try viewContext.fetch(storageManager.fetchData())
         } catch {
             print(error.localizedDescription)
         }
     }
+    
+    private func deleteData(at index: Int) {
+        viewContext.delete(taskList[index])
+        taskList.remove(at: index)
+        do {
+            try viewContext.save()
+        } catch {
+            print(error.localizedDescription)
+        }
+    }
+    
+    private func save(_ taskName: String) {
+        let task = Task(context: viewContext)
+        task.title = taskName
+        taskList.append(task)
+        
+        let indexPath = IndexPath(row: taskList.count - 1, section: 0)
+        tableView.insertRows(at: [indexPath], with: .automatic)
+    
+        if viewContext.hasChanges {
+            do {
+                try viewContext.save()
+            } catch {
+                print(error.localizedDescription)
+            }
+        }
+        dismiss(animated: true)
+    }
+    
+    
     
     private func showAlert(withTitle title: String, andMessage message: String) {
         let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
@@ -65,22 +94,14 @@ final class TaskListViewController: UITableViewController {
         present(alert, animated: true)
     }
     
-    private func save(_ taskName: String) {
-        let task = Task(context: viewContext)
-        task.title = taskName
-        taskList.append(task)
-        
-        let indexPath = IndexPath(row: taskList.count - 1, section: 0)
-        tableView.insertRows(at: [indexPath], with: .automatic)
-        
-        if viewContext.hasChanges {
-            do {
-                try viewContext.save()
-            } catch {
-                print(error.localizedDescription)
-            }
+    override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
+        if editingStyle == .delete {
+            deleteData(at: indexPath.row)
+            tableView.deleteRows(at: [indexPath], with: .automatic)
+            
+            
+            
         }
-        dismiss(animated: true)
     }
 }
 
